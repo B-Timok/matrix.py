@@ -13,6 +13,70 @@ python3 matrix.py        # or, since it's executable:
 Press your terminal's fullscreen key (usually **F11**, or **Cmd/Ctrl+Enter**)
 for the full effect. Press **q** or **Ctrl-C** to quit.
 
+## Running from different environments
+
+It needs **Python 3.4+** and a real, interactive terminal (a TTY). No `pip
+install` — `curses` ships with Python on Linux and macOS.
+
+### Get the code
+
+```bash
+git clone https://github.com/B-Timok/matrix.py.git
+cd matrix.py
+python3 matrix.py
+```
+
+### Linux / macOS terminal
+
+Works out of the box in any standard terminal (GNOME Terminal, Konsole,
+iTerm2, macOS Terminal, Alacritty, kitty, …). For the richest fade gradient,
+use a 256-color terminal:
+
+```bash
+TERM=xterm-256color ./matrix.py        # smoothest fade
+```
+
+On bare/limited terminals (`TERM=vt100`, `TERM=dumb`, serial consoles) it
+degrades gracefully to a bold/dim monochrome look instead of crashing.
+
+### Windows
+
+`curses` is **not** bundled with Python on Windows. Pick one:
+
+- **WSL** (recommended) — run it inside a WSL Linux distro exactly as above.
+- **Git Bash / MSYS2** — works with their Python builds.
+- **Native Windows Python** — install the curses port:
+  ```powershell
+  pip install windows-curses
+  python matrix.py
+  ```
+  Use **Windows Terminal** for proper colors and Unicode katakana.
+
+### SSH / remote servers
+
+Just run it over your SSH session — it reads the remote `TERM`. If glyphs look
+wrong, your local terminal font is the thing that matters; add `--ascii`.
+
+### tmux / screen
+
+Works inside multiplexers. For full color inside tmux, enable 256-color
+support (e.g. `set -g default-terminal "screen-256color"` in `~/.tmux.conf`).
+
+### Run without cloning
+
+```bash
+curl -sSL https://raw.githubusercontent.com/B-Timok/matrix.py/main/matrix.py | python3 -
+```
+
+> Piping a script straight into an interpreter runs it immediately — give it a
+> read first if you don't trust the source.
+
+### Where it won't run
+
+It needs an interactive TTY, so it can't display in non-terminal contexts:
+plain CI logs, `cron` jobs, Jupyter notebooks, or anything without a real
+terminal attached. In those cases curses has nothing to draw to.
+
 ## Options
 
 ```

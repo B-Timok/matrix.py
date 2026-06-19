@@ -135,11 +135,37 @@ class Column:
             yield row, ch, self.head - row, self.length
 
 
+def init_monochrome(fade):
+    """Fallback for terminals with no color: shape the rain with bold/dim only."""
+    global HEAD_ATTR, TRAIL_ATTRS
+    HEAD_ATTR = curses.A_BOLD | curses.A_REVERSE
+    if fade:
+        TRAIL_ATTRS = [
+            curses.A_BOLD,
+            curses.A_NORMAL,
+            curses.A_NORMAL,
+            curses.A_DIM,
+            curses.A_DIM,
+        ]
+    else:
+        TRAIL_ATTRS = [curses.A_BOLD, curses.A_NORMAL, curses.A_DIM]
+
+
 def init_colors(name, fade):
     """Set up HEAD_ATTR and the TRAIL_ATTRS gradient for the chosen color/mode."""
     global HEAD_ATTR, TRAIL_ATTRS
-    curses.start_color()
-    curses.use_default_colors()
+
+    # Terminals with no color support (e.g. TERM=dumb, some CI/log shells) can't
+    # do color pairs at all; fall back to a bold/dim-only look instead of crashing.
+    try:
+        if not curses.has_colors():
+            init_monochrome(fade)
+            return
+        curses.start_color()
+        curses.use_default_colors()
+    except curses.error:
+        init_monochrome(fade)
+        return
 
     # The leading glyph is always a bright white.
     curses.init_pair(1, curses.COLOR_WHITE, -1)
@@ -147,21 +173,33 @@ def init_colors(name, fade):
 
     base = COLORS[name]
 
+    can_ramp = False
     if fade and curses.can_change_color() and curses.COLORS >= 32:
-        # Smooth ramp of custom shades from bright down to nearly black.
-        steps = 10
-        r, g, b = COLOR_RGB[name]
-        attrs = []
-        for i in range(steps):
-            factor = 1.0 - (i / steps) * 0.85  # 1.0 -> ~0.15
-            color_num = 16 + i
-            pair_num = 2 + i
-            curses.init_color(
-                color_num, int(r * factor), int(g * factor), int(b * factor)
-            )
-            curses.init_pair(pair_num, color_num, -1)
-            attrs.append(curses.color_pair(pair_num) | (curses.A_BOLD if i < 2 else 0))
-        TRAIL_ATTRS = attrs
+        # Smooth ramp of custom shades from bright down to nearly black. Some
+        # terminals advertise can_change_color() but still reject init_color(),
+        # so fall through to the bold/dim approximation if it raises.
+        try:
+            steps = 10
+            r, g, b = COLOR_RGB[name]
+            attrs = []
+            for i in range(steps):
+                factor = 1.0 - (i / steps) * 0.85  # 1.0 -> ~0.15
+                color_num = 16 + i
+                pair_num = 2 + i
+                curses.init_color(
+                    color_num, int(r * factor), int(g * factor), int(b * factor)
+                )
+                curses.init_pair(pair_num, color_num, -1)
+                attrs.append(
+                    curses.color_pair(pair_num) | (curses.A_BOLD if i < 2 else 0)
+                )
+            TRAIL_ATTRS = attrs
+            can_ramp = True
+        except curses.error:
+            can_ramp = False
+
+    if can_ramp:
+        pass
     elif fade:
         # Terminal can't redefine colors: approximate texture with bold/dim.
         curses.init_pair(2, base, -1)
@@ -209,7 +247,12 @@ def draw(stdscr, columns, fade):
 
 
 def main(stdscr, args):
-    curses.curs_set(0)
+    # Some minimal terminals (e.g. TERM=vt100/dumb) lack cursor-visibility
+    # capabilities and raise here; hiding the cursor is cosmetic, so skip it.
+    try:
+        curses.curs_set(0)
+    except curses.error:
+        pass
     stdscr.nodelay(True)
     init_colors(args.color, args.fade)
     charset = ASCII if args.ascii else KATAKANA
@@ -218,6 +261,9 @@ def main(stdscr, args):
     columns = build_columns(width, height, args.density, charset)
     delay = 0.11 - (args.speed - 1) * 0.01  # speed 1 -> 0.11s, speed 10 -> 0.02s
 
+    # Pace by an absolute schedule and subtract render time, so --speed stays
+    # consistent on large terminals where drawing a frame isn't free.
+    next_frame = time.monotonic()
     while True:
         ch = stdscr.getch()
         if ch in (ord("q"), ord("Q")):
@@ -229,7 +275,15 @@ def main(stdscr, args):
         for col in columns:
             col.step()
         draw(stdscr, columns, args.fade)
-        time.sleep(delay)
+
+        next_frame += delay
+        remaining = next_frame - time.monotonic()
+        if remaining > 0:
+            time.sleep(remaining)
+        else:
+            # Behind schedule (slow terminal / big screen); resync to avoid
+            # accumulating drift and a "catch-up" burst of frames.
+            next_frame = time.monotonic()
 
 
 if __name__ == "__main__":
