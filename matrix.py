@@ -9,10 +9,10 @@ Press 'q' or Ctrl-C to quit. Press your terminal's fullscreen key
 
 Options:
     --color {green,cyan,red,purple,white,yellow}  Rain color (default: green)
-    --speed N        Animation speed, 1 (slow) to 10 (fast). Default: 5
+    --speed N        Animation speed, 1 (slow) to 10 (fast). Default: 8
     --density F      Fraction of columns active, 0.1 to 1.0. Default: 0.9
-    --fade           Smooth multi-step brightness gradient down each trail,
-                     with subtle flicker, for extra texture
+    --fade / --no-fade  Smooth multi-step brightness gradient down each trail,
+                     with subtle flicker, for extra texture. On by default.
     --ascii          Use ASCII characters instead of katakana
 """
 
@@ -60,7 +60,7 @@ def parse_args():
         "--color", choices=sorted(COLORS), default="green", help="rain color"
     )
     p.add_argument(
-        "--speed", type=int, default=5, help="animation speed, 1 (slow) to 10 (fast)"
+        "--speed", type=int, default=8, help="animation speed, 1 (slow) to 10 (fast)"
     )
     p.add_argument(
         "--density",
@@ -70,7 +70,8 @@ def parse_args():
     )
     p.add_argument(
         "--fade",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="smooth multi-step fade down each trail, with flicker, for texture",
     )
     p.add_argument(
@@ -127,7 +128,7 @@ class Column:
             self.reset()
 
     def cells(self):
-        """Yield (row, char, depth) where depth is rows behind the head (0 = head)."""
+        """Yield (row, char, depth, length); depth is rows behind the head (0 = head)."""
         for row, ch in self.chars.items():
             if not 0 <= row < self.height:
                 continue
