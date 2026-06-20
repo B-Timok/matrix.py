@@ -18,6 +18,7 @@ Options:
 
 import argparse
 import curses
+import locale
 import random
 import time
 
@@ -288,6 +289,13 @@ def main(stdscr, args):
 
 if __name__ == "__main__":
     args = parse_args()
+    # curses only renders multibyte glyphs (the katakana) correctly when the
+    # locale is initialized from the environment. Without this, non-ASCII chars
+    # show up as boxes/garbage and --ascii becomes the only usable mode.
+    try:
+        locale.setlocale(locale.LC_ALL, "")
+    except locale.Error:
+        pass
     try:
         curses.wrapper(main, args)
     except KeyboardInterrupt:

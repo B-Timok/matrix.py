@@ -132,8 +132,26 @@ Pass `--no-fade` for the simpler classic three-level look
 ./matrix.py --ascii                    # if your font lacks katakana glyphs
 ```
 
+## Troubleshooting katakana
+
+The default katakana glyphs are multibyte (UTF-8) characters. Two things have
+to be true for them to display:
+
+1. **A UTF-8 locale.** The program initializes the locale from your
+   environment automatically, but that environment has to point at a UTF-8
+   locale. Check with `locale` — `LANG`/`LC_ALL` should end in `UTF-8`
+   (e.g. `en_US.UTF-8` or `C.UTF-8`). On **WSL** this is usually set, but if
+   not:
+   ```bash
+   export LANG=C.UTF-8        # add to ~/.bashrc to make it stick
+   ```
+2. **A font with the glyphs.** If you still see boxes (□) or blanks after the
+   locale is correct, your terminal font lacks half-width katakana. In
+   **Windows Terminal**, set the WSL profile's font to one with CJK coverage,
+   such as **Cascadia Code**, **MS Gothic**, or any "Nerd Font" CJK build.
+
+If you'd rather not fiddle with fonts, `--ascii` always works.
+
 ## Notes
 
-- If you see boxes instead of katakana, your terminal font doesn't include
-  those glyphs — add `--ascii`.
 - Resizing the terminal is handled live; the column grid rebuilds to fit.
